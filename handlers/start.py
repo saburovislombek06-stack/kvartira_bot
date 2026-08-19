@@ -18,6 +18,7 @@ PHONE_RE = re.compile(r"^\+?\d{9,13}$")
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
+    await db.upsert_user(message.from_user.id)
     user = await db.get_user(message.from_user.id)
     if user and user["full_name"] and user["phone"]:
         # Allaqachon ro'yxatdan o'tgan - to'g'ridan-to'g'ri asosiy menyu
