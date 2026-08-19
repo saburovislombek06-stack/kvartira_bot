@@ -39,7 +39,7 @@ async def cmd_users(message: Message):
         lang = await db.get_user_language(message.from_user.id)
         await message.answer(t("admin_not_authorized", lang))
         return
-    users = await db.list_users(limit=50)
+    users = await db.list_users(limit=100000)
     if not users:
         await message.answer("Hozircha foydalanuvchilar yo'q.")
         return
