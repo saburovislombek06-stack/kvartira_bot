@@ -197,12 +197,19 @@ async def stats_summary():
         }
 
 
-async def list_users(limit: int = 50):
+async def list_users(limit: int = 50, offset: int = 0):
+
     async with aiosqlite.connect(DB_PATH) as db:
+
         db.row_factory = aiosqlite.Row
+
         cur = await db.execute(
-            "SELECT * FROM users ORDER BY created_at DESC LIMIT ?", (limit,)
+            "SELECT * FROM users "
+            "ORDER BY created_at DESC "
+            "LIMIT ? OFFSET ?",
+            (limit, offset)
         )
+
         return await cur.fetchall()
 
 
