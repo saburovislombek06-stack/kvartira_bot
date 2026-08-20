@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message
-
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 import database as db
 from config import ADMIN_IDS
 from locales import t
@@ -39,16 +38,79 @@ async def cmd_users(message: Message):
         lang = await db.get_user_language(message.from_user.id)
         await message.answer(t("admin_not_authorized", lang))
         return
-    users = await db.list_users(limit=100000)
-    if not users:
-        await message.answer("Hozircha foydalanuvchilar yo'q.")
+
+    await show_users_page(message, 0)
+
+
+async def show_users_page(target, page: int):
+    limit = 50
+    offset = page * limit
+
+    users = await db.list_users(limit=limit + 1, offset=offset)
+
+    if not users and page == 0:
+        await target.answer("Hozircha foydalanuvchilar yo‘q.")
         return
-    lines = ["👥 <b>So'nggi foydalanuvchilar</b>:\n"]
+
+    has_next = len(users) > limit
+    users = users[:limit]
+
+    lines = [
+        f"👥 <b>Foydalanuvchilar</b> — {page + 1}-sahifa\n"
+    ]
+
     for u in users:
         lines.append(
-            f"• {u['full_name'] or '-'} | {u['phone'] or '-'} | id: <code>{u['user_id']}</code> | {u['language']}"
+            f"• {u['full_name'] or '-'} | "
+            f"{u['phone'] or '-'} | "
+            f"ID: <code>{u['user_id']}</code> | "
+            f"{u['language']}"
         )
-    await message.answer("\n".join(lines), parse_mode="HTML")
+
+    buttons = []
+
+    if page > 0:
+        buttons.append(
+            InlineKeyboardButton(
+                text="⬅️ Oldingi",
+                callback_data=f"users_page:{page - 1}"
+            )
+        )
+
+    if has_next:
+        buttons.append(
+            InlineKeyboardButton(
+                text="Keyingi ➡️",
+                callback_data=f"users_page:{page + 1}"
+            )
+        )
+
+    keyboard = None
+
+    if buttons:
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[buttons]
+        )
+
+    await target.answer(
+        "\n".join(lines),
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
+
+
+@router.callback_query(F.data.startswith("users_page:"))
+async def users_page_callback(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Ruxsat yo‘q.", show_alert=True)
+        return
+
+    page = int(callback.data.split(":")[1])
+
+    await callback.message.delete()
+    await show_users_page(callback.message, page)
+
+    await callback.answer()
 
 
 @router.message(Command("listings"))
